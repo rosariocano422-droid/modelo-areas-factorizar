@@ -5,8 +5,9 @@ st.set_page_config(page_title="Modelo de áreas para factorizar", layout="center
 st.title("Modelo de áreas para factorizar")
 st.write("""
 Esta simulación representa el modelo de áreas usado para factorizar polinomios 
-de la forma **a² + pa + q**. Selecciona uno de los casos disponibles y sigue 
-los pasos para armar el rectángulo y ver su factorización.
+de la forma **a² + pa + q**. Selecciona uno de los casos disponibles, o elige 
+"Personalizado" para ingresar tus propios coeficientes, y sigue los pasos para 
+armar el rectángulo y ver su factorización.
 """)
 
 casos = {
@@ -15,27 +16,51 @@ casos = {
     "Caso 3: a² + 5a + 6": {"p": 5, "q": 6, "factoriza": True, "m": 2, "n": 3},
     "Caso 4: a² + 2a + 3": {"p": 2, "q": 3, "factoriza": False},
     "Caso 5: a² + 3a + 5": {"p": 3, "q": 5, "factoriza": False},
+    "Personalizado: ingresa tus propios coeficientes": None,
 }
 
 caso_elegido = st.selectbox("Selecciona un caso:", list(casos.keys()))
-datos = casos[caso_elegido]
+
+# Si es personalizado, mostrar campos para ingresar p y q
+if caso_elegido == "Personalizado: ingresa tus propios coeficientes":
+    col_p, col_q = st.columns(2)
+    with col_p:
+        p_usuario = st.number_input("Coeficiente p (de 'pa'):", min_value=1, max_value=20, value=3, step=1)
+    with col_q:
+        q_usuario = st.number_input("Coeficiente q:", min_value=1, max_value=50, value=2, step=1)
+
+    # Buscar si existen dos enteros positivos m, n tales que m*n = q y m+n = p
+    factoriza = False
+    m_final, n_final = None, None
+    for m in range(1, q_usuario + 1):
+        if q_usuario % m == 0:
+            n = q_usuario // m
+            if m + n == p_usuario:
+                factoriza = True
+                m_final, n_final = m, n
+                break
+
+    datos = {"p": p_usuario, "q": q_usuario, "factoriza": factoriza, "m": m_final, "n": n_final}
+else:
+    datos = casos[caso_elegido]
 
 if "caso_actual" not in st.session_state or st.session_state["caso_actual"] != caso_elegido:
     st.session_state["caso_actual"] = caso_elegido
     st.session_state["paso"] = 0
 
+# Si es personalizado, también reiniciar el paso cuando cambien p o q
+if caso_elegido == "Personalizado: ingresa tus propios coeficientes":
+    clave_actual = f"personalizado_{datos['p']}_{datos['q']}"
+    if st.session_state.get("clave_personalizado") != clave_actual:
+        st.session_state["clave_personalizado"] = clave_actual
+        st.session_state["paso"] = 0
+
 st.write(f"**Polinomio seleccionado:** a² + {datos['p']}a + {datos['q']}")
 
-# Medidas reales en centímetros
-MEDIDA_1 = 5    # lado "1" = 5 cm
-MEDIDA_A = 10   # lado "a" = 10 cm
-
-# Tamaños en pixeles para dibujar (proporcionales a las medidas reales)
-U = MEDIDA_1 * 8   # 40 px
-A = MEDIDA_A * 8   # 80 px
-
-def etiqueta(texto, cm):
-    return f'<div style="font-size:11px; color:#333; text-align:center;">{texto}<br>{cm} cm</div>'
+MEDIDA_1 = 5
+MEDIDA_A = 10
+U = MEDIDA_1 * 8
+A = MEDIDA_A * 8
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -52,7 +77,6 @@ paso = st.session_state.get("paso", 0)
 
 st.divider()
 
-# ---------- PASO 1: fichas sueltas ----------
 if paso >= 1:
     st.subheader("Fichas necesarias")
     st.write(f"- 1 ficha de área a² (lados de {MEDIDA_A} cm cada uno)")
@@ -60,31 +84,23 @@ if paso >= 1:
     st.write(f"- {datos['q']} fichas de área 1 (lados de {MEDIDA_1} cm cada uno)")
 
     fichas_html = '<div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;">'
-
-    # Ficha a²
     fichas_html += '<div style="text-align:center;">'
     fichas_html += f'<div style="width:{A}px; height:{A}px; background:#f4a3a3; border:2px solid #b33; display:flex; align-items:center; justify-content:center; font-weight:bold;">a²</div>'
     fichas_html += f'<div style="font-size:11px;">{MEDIDA_A} cm × {MEDIDA_A} cm</div>'
     fichas_html += '</div>'
-
-    # Fichas a
     for _ in range(datos["p"]):
         fichas_html += '<div style="text-align:center;">'
         fichas_html += f'<div style="width:{U}px; height:{A}px; background:#a3c6f4; border:2px solid #3366b3; display:flex; align-items:center; justify-content:center; font-weight:bold;">a</div>'
         fichas_html += f'<div style="font-size:11px;">{MEDIDA_1} cm × {MEDIDA_A} cm</div>'
         fichas_html += '</div>'
-
-    # Fichas 1
     for _ in range(datos["q"]):
         fichas_html += '<div style="text-align:center;">'
         fichas_html += f'<div style="width:{U}px; height:{U}px; background:#a3f4b3; border:2px solid #339955; display:flex; align-items:center; justify-content:center; font-weight:bold;">1</div>'
         fichas_html += f'<div style="font-size:11px;">{MEDIDA_1} cm × {MEDIDA_1} cm</div>'
         fichas_html += '</div>'
-
     fichas_html += '</div>'
     st.markdown(fichas_html, unsafe_allow_html=True)
 
-# ---------- PASO 2: armar el rectángulo ----------
 if paso >= 2:
     st.subheader("Rectángulo armado")
     if datos["factoriza"]:
@@ -115,12 +131,10 @@ if paso >= 2:
                  f"y {datos['q']} fichas de 1, pero no existen dos números enteros positivos que multiplicados "
                  f"den {datos['q']} y sumados den {datos['p']}.")
 
-# ---------- PASO 3: factorización ----------
 if paso >= 3:
     st.subheader("Factorización")
     if datos["factoriza"]:
         m, n = datos["m"], datos["n"]
         st.success(f"a² + {datos['p']}a + {datos['q']} = (a + {m})(a + {n})")
     else:
-        st.warning(f"a² + {datos['p']}a + {datos['q']} no se puede factorizar como producto de dos "
-                   f"binomios con términos enteros positivos.")
+        st.warning(f"a² + {datos['p']}a + {datos['q']} no se puede
